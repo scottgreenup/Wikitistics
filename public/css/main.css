@@ -1,0 +1,14 @@
+body {
+  padding-top: 50px;
+}
+
+.navbar-fixed-top {
+  border: 0;
+}
+
+#chart-tabs .tab-pane {
+  background-color: #FF0000;
+}
+
+#chart-tabs .tab-pane * {
+}
