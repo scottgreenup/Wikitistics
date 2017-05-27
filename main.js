@@ -28,6 +28,7 @@ const winston = require('winston')
 
 mongoose.Promise = global.Promise;
 
+var RevisionModel = require('./app/models/revision').model;
 var app = express()
 
 app.set('view engine', 'ejs');
@@ -261,26 +262,6 @@ db.on('error', console.error.bind(console, 'connection error: '));
 db.once('open', function() {
     winston.info("Connected to %s", databaseAddress);
 
-    // Create a schema in mongoDB, and compile it into a model
-    var revisionSchema = mongoose.Schema({
-        anon: Boolean,
-        commenthidden: Boolean,
-        minor: Boolean,
-        parentid: Number,
-        parsedcomment: String,
-        revid: Number,
-        sha1: String,
-        sha1hidden: Boolean,
-        size: Number,
-        suppressed: Boolean,
-        timestamp: String,
-        title: String,
-        user: String,
-        userhidden: Boolean
-    });
-
-    var Revision = mongoose.model('Revision', revisionSchema);
-
-    importHistoricalData(Revision);
+    importHistoricalData(RevisionModel);
 });
 
