@@ -233,7 +233,6 @@ function importHistoricalData() {
     });
 }
 
-
 function getLatestRevisionInDatabase(title) {
     return new Promise((resolve, reject) => {
         RevisionModel
@@ -275,7 +274,6 @@ function createQuery(title, timestamp) {
         'Accept-Charset': 'utf-8'
     }
 }
-
 
 function getLatestRevisionsOnWikipedia(data) {
     return new Promise((resolve, reject) => {
@@ -372,20 +370,16 @@ db.once('open', function() {
 
     //importHistoricalData();
 
-            var tasks = [];
-
-    RevisionModel.find({}).distinct('title', function(error, titles) {
-
-        function perform(index) {
-            if (index < titles.length) {
-                getLatestRevisions(titles[index]).then(function(results) {
-                    perform(index + 1);
-                });
-            }
-        }
-
-        perform(0);
-    });
+    //RevisionModel.find({}).distinct('title', function(error, titles) {
+    //    function perform(index) {
+    //        if (index < titles.length) {
+    //            getLatestRevisions(titles[index]).then(function(results) {
+    //                perform(index + 1);
+    //            });
+    //        }
+    //    }
+    //    perform(0);
+    //});
 
 });
 
