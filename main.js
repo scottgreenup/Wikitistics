@@ -41,9 +41,13 @@ app.get('/', function(req, res) {
 
 })
 
-app.listen(8000, function() {
-    console.log('Running on :8000');
+const PORT = 8000;
+
+app.listen(PORT, function() {
+    console.log('Running on :%d', PORT);
 });
+
+var dataDir = './data'
 
 //------------------------------------------------------------------------------
 
@@ -116,10 +120,8 @@ class Article {
 }
 
 function latestTimestamp(revisions) {
-
     var latest = 0;
     var revid = null;
-
     revisions.forEach(function(r) {
         var unixTime = moment(r.timestamp).unix();
         if (unixTime > latest) {
@@ -127,90 +129,67 @@ function latestTimestamp(revisions) {
             revid = r.revid;
         }
     });
-
     return {latest: latest, revid: revid}
 }
 
-function processArticleFile(filename, RevisionCls, callback) {
-
-    // Load and sort the historical data by revid
-    var data = JSON.parse(fs.readFileSync(dataDir + '/' + filename, 'utf8'));
-    data.sort(function(a, b) {
-        return a.revid - b.revid;
-    });
-
-    var article = new Article(filename, data)
-    var tasks = [];
+function processArticleFile(data, title, RevisionModel, callback) {
 
     // Find all revisions in the database for this article, then see if our
     // historical data has any elements missing from the database. If it does,
     // add it.
-    RevisionCls
-        .find({title: article.title})
-        .sort({"revid": 1})
-        .exec(function(err, revisions) {
-            var i = 0;
+    var addHistoricalData = function(callback) {
+        RevisionModel
+            .find({title: title})
+            .sort({"revid": 1})
+            .exec(function(err, revisions) {
+                var i = 0;
+                var tasks = [];
 
-            data.forEach(function(r) {
-                while (i < revisions.length && r.revid > revisions[i].revid) {
-                    i++;
-                }
-
-                if (i < revisions.length) {
-                    if (r.revid == revisions[i].revid) {
-                        return;
+                data.forEach(function(r) {
+                    while (i < revisions.length && r.revid > revisions[i].revid) {
+                        i++;
                     }
-                }
 
-                // add r to the database
-                tasks.push(function(callback) {
-                    revision = new RevisionCls(r);
-                    revision.save(function(error, revision) {
-                        if (error) {
-                            console.error(error);
+                    if (i < revisions.length) {
+                        if (r.revid == revisions[i].revid) {
+                            return;
                         }
+                    }
 
-                        callback(null, revision);
+                    // add r to the database
+                    tasks.push(function(callback) {
+                        revision = new RevisionModel(r);
+                        revision.save(function(error, revision) {
+                            if (error) {
+                                console.error(error);
+                            }
+
+                            callback(null, revision);
+                        });
                     });
                 });
-            });
 
-            // Run every task in parallel, when they are all finished, execute
-            // the callback for processArticleFile
-            async.parallel(tasks, function(error, results) {
-                winston.info(
-                    "Processed '%s': inserted %d; found %d existing.",
-                    article.title, results.length, revisions.length);
-                callback(error, results.length);
+                // Run every task in parallel, when they are all finished, execute
+                // the callback for processArticleFile
+                async.parallel(tasks, function(error, results) {
+                    winston.info(
+                        "Processed '%s': inserted %d; found %d existing.",
+                        article.title, results.length, revisions.length);
+                    callback(error, results.length);
+                });
             });
+    }
+
+    RevisionModel
+        .find({title: title, revid: data[data.length - 1].revid})
+        .exec(function(err, revisions) {
+            if (revisions.length == 1) {
+                winston.info("Processed '%s': up to date", title);
+                callback(null, null);
+            } else {
+                callback(null, addHistoricalData);
+            }
         });
-
-    /*
-    var count = 1;
-    var tasks = [];
-
-    data.forEach(function(rev) {
-        if ('suppressed' in rev) {
-            return;
-        }
-
-        revision = new RevisionCls(rev);
-        tasks.push(function(callback) {
-            revision.save(function(error, revision) {
-                if (error) {
-                    console.error(error);
-                }
-
-                callback(null, revision);
-            });
-        });
-    });
-
-    async.parallel(tasks, function(error, results) {
-        console.log("Processed " + article.title + ": inserted " + results.length + " documents.");
-        callback(error, results.length);
-    });
-    // */
 
     /*
     var wikiEndpoint = "https://en.wikipedia.org/w/api.php";
@@ -250,11 +229,31 @@ function processArticleFile(filename, RevisionCls, callback) {
     // */
 }
 
-var dataDir = './data'
-var files = fs.readdirSync(dataDir)
-var databaseAddress = 'mongodb://localhost/wikipedia_6'
-
+var databaseAddress = 'mongodb://localhost/wikipedia_7'
 mongoose.connect(databaseAddress)
+
+function importHistoricalData(RevisionModel) {
+    winston.info("Processing historical archive.");
+
+    var files = fs.readdirSync(dataDir)
+    var tasks = [];
+
+    files.forEach(function(filename) {
+        tasks.push(function(callback) {
+            var rawData = fs.readFileSync(dataDir + '/' + filename, 'utf8');
+            var jsonData = JSON.parse(rawData).sort(function(a, b) {
+                return a.revid - b.revid;
+            });
+            var title = filename.substring(0, filename.lastIndexOf('.'));
+            processArticleFile(jsonData, title, RevisionModel, callback);
+       });
+    });
+
+    async.parallel(tasks, function(error, insertTasks) {
+        insertTasks = insertTasks.filter(function(e) { return e != null });
+        async.series(insertTasks);
+    });
+}
 
 // Create a connection to localhost on database called temporary
 var db = mongoose.connection;
@@ -282,17 +281,6 @@ db.once('open', function() {
 
     var Revision = mongoose.model('Revision', revisionSchema);
 
-
-    winston.info("Processing historical archive.");
-
-    // Processing in series otherwise to many asynchronous callbacks are waiting
-    // to run, causing an OOM error.
-    var tasks = [];
-    files.forEach(function(filename) {
-        tasks.push(function(callback) {
-            processArticleFile(filename, Revision, callback);
-       });
-    });
-    async.series(tasks);
+    importHistoricalData(Revision);
 });
 
