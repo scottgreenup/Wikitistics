@@ -12,4 +12,6 @@ router.get('/leastUsers', controller.leastUsers);
 router.get('/oldest', controller.oldestTimestamp);
 router.get('/youngest', controller.youngestTimestamp);
 
+router.get('/byYearByUser', controller.byYearByUser);
+
 module.exports = router;

@@ -162,6 +162,7 @@ function addHistoricalData(title, jsonData, callback) {
 
             // Create the task to add it, so we can run them together.
             tasks.push(function(callback) {
+                //r.timestamp = new Date(r.timestamp);
                 var revision = new RevisionModel(r);
                 revision.save(function(error, revision) {
                     if (error) {
@@ -201,7 +202,7 @@ function importHistoricalData() {
 
     fileData = new Map();
 
-    fs.readdirSync(config.dataDir).forEach(function(fileName) {
+    fs.readdirSync(config.dataDir).slice(0, 3).forEach(function(fileName) {
         var rawData = fs.readFileSync(config.dataDir + '/' + fileName, 'utf8');
         var jsonData = JSON.parse(rawData);
         jsonData.sort(function(a, b) {
@@ -265,9 +266,10 @@ function createQuery(title, timestamp) {
         'titles=' + urlencode(title),
         'rvprop=sha1|parsedcomment|size|timestamp|userid|user|ids',
         'rvlimit=max',
-        'rvstart=' + timestamp,
+        'rvstart=' + new Date(timestamp).toISOString(),
         'rvdir=newer'
     ];
+
     return {
         'url': wikiEndpoint + "?" + parameters.join("&"),
         'Accept': 'application/json',
@@ -318,6 +320,7 @@ function getLatestRevisionsOnWikipedia(data) {
         }
 
         var options = createQuery(data.title, currTimestamp);
+
         request(options, requestSeries);
     });
 }
@@ -335,6 +338,7 @@ function insertRevisionsIntoDatabase(data) {
         data.revisions.forEach(function(revision) {
             tasks.push(function(callback) {
                 revision.title = data.title;
+                //revision.timestamp = new Date(revision.timestamp);
                 (new RevisionModel(revision)).save(function(error, r) {
                     if (error) {
                         winston.error(error);
@@ -370,16 +374,16 @@ db.once('open', function() {
 
     //importHistoricalData();
 
-    //RevisionModel.find({}).distinct('title', function(error, titles) {
-    //    function perform(index) {
-    //        if (index < titles.length) {
-    //            getLatestRevisions(titles[index]).then(function(results) {
-    //                perform(index + 1);
-    //            });
-    //        }
-    //    }
-    //    perform(0);
-    //});
+    RevisionModel.find({}).distinct('title', function(error, titles) {
+        function perform(index) {
+            if (index < titles.length) {
+                getLatestRevisions(titles[index]).then(function(results) {
+                    perform(index + 1);
+                });
+            }
+        }
+        perform(0);
+    });
 
 });
 
