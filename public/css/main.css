@@ -12,3 +12,12 @@ body {
 
 #chart-tabs .tab-pane * {
 }
+
+#container-dropdown {
+  margin-top: 5px;
+  margin-bottom: 15px;
+}
+
+#container-dropdown .dropdown{
+  float: right;
+}
