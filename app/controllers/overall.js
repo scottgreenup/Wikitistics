@@ -179,8 +179,6 @@ module.exports.youngestTimestamp = function(req, res) {
 }
 
 module.exports.byYearByUser = function(req, res) {
-    var yearToUser = new Map();
-
     RevisionModel.aggregate([
         {
             $addFields: {

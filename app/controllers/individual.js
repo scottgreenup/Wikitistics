@@ -104,6 +104,101 @@ module.exports.byYearByUser = function(req, res) {
         res.send("failure");
         return;
     }
+
+    var articleTitle = req.query.article;
+
+    RevisionModel.aggregate([
+		{
+			$match: {
+				title: articleTitle,
+			}
+		},
+        {
+            $addFields: {
+                year: {
+                    $year: "$timestamp"
+                }
+            }
+        },
+        {
+            $group: {
+                _id: { user: "$user", year: "$year" },
+                count: { $sum: 1 },
+                anon: { $addToSet: "$anon" }
+            }
+        }
+    ], function(err, docs) {
+        if (docs === undefined) {
+            res.send("failure");
+            return;
+        }
+
+        var map = new Map();
+
+        map.set('admin', new Map())
+        map.set('anon', new Map())
+        map.set('bot', new Map())
+        map.set('user', new Map())
+
+        var bots = fs.readFileSync('./bot.txt', 'utf8');
+        bots = new Set(bots.toString().split('\n'));
+        var admins = fs.readFileSync('./admin.txt', 'utf8');
+        admins = new Set(admins.toString().split('\n'));
+
+        docs.forEach(function(doc) {
+
+            var key = 'user';
+
+            if (doc.anon.length == 1) {
+                key = 'anon'
+            } else if (bots.has(doc._id.user)) {
+                key = 'bot'
+            } else if (admins.has(doc._id.user)) {
+                key = 'admin'
+            }
+
+            var yearMap = map.get(key);
+            if (yearMap.has(doc._id.year) == false) {
+                yearMap.set(doc._id.year, 1)
+            } else {
+                yearMap.set(doc._id.year, yearMap.get(doc._id.year) + 1);
+            }
+            map.set(key, yearMap);
+
+        });
+
+        var dataTable = {
+            admin: [],
+            anon: [],
+            bot: [],
+            users: []
+        };
+
+        function createObj(count, year) {
+            return {
+                label: year.toString(),
+                y: count
+            }
+        }
+
+        map.get('admin').forEach(function(count, year) {
+            dataTable.admin.push(createObj(count, year));
+        });
+
+        map.get('anon').forEach(function(count, year) {
+            dataTable.anon.push(createObj(count, year));
+        });
+
+        map.get('bot').forEach(function(count, year) {
+            dataTable.bot.push(createObj(count, year));
+        });
+
+        map.get('user').forEach(function(count, year) {
+            dataTable.users.push(createObj(count, year));
+        });
+
+        res.send(JSON.stringify(dataTable));
+	});
 }
 
 module.exports.byUser = function(req, res) {

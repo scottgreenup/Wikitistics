@@ -8,5 +8,6 @@ router.get('/', controller.showPage);
 router.get('/articleList', controller.articleList);
 router.get('/revisionCount', controller.revisionCount);
 router.get('/topFiveUsers', controller.topFiveUsers);
+router.get('/byYearByUser', controller.byYearByUser);
 
 module.exports = router;
