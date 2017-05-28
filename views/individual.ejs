@@ -74,6 +74,7 @@
       $.get({
         url: '/individual/articleList',
         success: function(data) {
+					data = data.sort();
           var domList = "";
           data.forEach(function(str) {
             domList += '<li><a href="/individual?article=' + str + '">' + str + '</a></li>';

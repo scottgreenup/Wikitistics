@@ -200,38 +200,41 @@ function filterHistoricalData(title, jsonData, callback) {
 function importHistoricalData() {
     winston.info("Processing historical archive.");
 
-    fileData = new Map();
+    return new Promise((resolve, reject) => {
+		fileData = new Map();
 
-    fs.readdirSync(config.dataDir).slice(0, 3).forEach(function(fileName) {
-        var rawData = fs.readFileSync(config.dataDir + '/' + fileName, 'utf8');
-        var jsonData = JSON.parse(rawData);
-        jsonData.sort(function(a, b) {
-            return a.revid - b.revid;
-        });
-        var title = removeFileType(fileName);
-        fileData.set(title, jsonData);
-    });
+		fs.readdirSync(config.dataDir).forEach(function(fileName) {
+			var rawData = fs.readFileSync(config.dataDir + '/' + fileName, 'utf8');
+			var jsonData = JSON.parse(rawData);
+			jsonData.sort(function(a, b) {
+				return a.revid - b.revid;
+			});
+			var title = removeFileType(fileName);
+			fileData.set(title, jsonData);
+		});
 
-    var tasks = [];
+		var tasks = [];
 
-    fileData.forEach(function(value, key) {
-        tasks.push(function(callback) {
-            filterHistoricalData(key, value, callback);
-        });
-    });
+		fileData.forEach(function(value, key) {
+			tasks.push(function(callback) {
+				filterHistoricalData(key, value, callback);
+			});
+		});
 
-    async.parallel(tasks, function(error, titles) {
-        titles = titles.filter(function(e) { return e !== null; });
-        tasks = [];
-        titles.forEach(function(title) {
-            tasks.push(function(callback) {
-                addHistoricalData(title, fileData.get(title), callback);
-            });
-        });
-        async.series(tasks, function(error, results) {
-            winston.info("Finished importing historical data.");
-        });
-    });
+		async.parallel(tasks, function(error, titles) {
+			titles = titles.filter(function(e) { return e !== null; });
+			tasks = [];
+			titles.forEach(function(title) {
+				tasks.push(function(callback) {
+					addHistoricalData(title, fileData.get(title), callback);
+				});
+			});
+			async.series(tasks, function(error, results) {
+				winston.info("Finished importing historical data.");
+				resolve("done");
+			});
+		});
+	});
 }
 
 function getLatestRevisionInDatabase(title) {
@@ -372,18 +375,19 @@ db.on('error', console.error.bind(console, 'connection error: '));
 db.once('open', function() {
     winston.info("Connected to %s", config.database.hostname);
 
-    //importHistoricalData();
-
-    RevisionModel.find({}).distinct('title', function(error, titles) {
-        function perform(index) {
-            if (index < titles.length) {
-                getLatestRevisions(titles[index]).then(function(results) {
-                    perform(index + 1);
-                });
-            }
-        }
-        perform(0);
-    });
+	importHistoricalData().then(function(done) {
+		winston.info("Updating dataset.");
+		RevisionModel.find({}).distinct('title', function(error, titles) {
+			function perform(index) {
+				if (index < titles.length) {
+					getLatestRevisions(titles[index]).then(function(results) {
+						perform(index + 1);
+					});
+				}
+			}
+			perform(0);
+		});
+	});
 
 });
 
