@@ -45,10 +45,10 @@
 
       <div class="tab-content" id="chart-tabs">
         <div class="tab-pane active" id="1">
-          <div id="chartContainer" style="height: 600px; width: 100%;"></div>
+          <div id="chartContainer" style="height: 400px; width: 100%;"></div>
         </div>
         <div class="tab-pane" id="2">
-          <div id="pieChart" style="height: 600px; width: 100%;"></div>
+          <div id="pieChart" style="height: 400px; width: 100%;"></div>
         </div>
       </div>
     </div>
@@ -69,32 +69,30 @@
 
       // Bar chart of revision number distribution by year and by user
 
-      var chart = new CanvasJS.Chart("pieChart",
-        {
-          theme: "theme2",
-          title:{
-            text: "User Revisions by User Type",
-          },
-          data: [
+      $.get({
+        url: '/overall/byUser',
+        success: function(data) {
+          data = JSON.parse(data);
+
+          var chart = new CanvasJS.Chart("pieChart",
             {
-              type: "pie",
-              showInLegend: true,
-              toolTipContent: "{y} - #percent %",
-              yValueFormatString: "#,##0,,.## Million",
-              legendText: "{indexLabel}",
-              dataPoints: [
-                {  y: 4181563, indexLabel: "PlayStation 3" },
-                {  y: 2175498, indexLabel: "Wii" },
-                {  y: 3125844, indexLabel: "Xbox 360" },
-                {  y: 1176121, indexLabel: "Nintendo DS"},
-                {  y: 1727161, indexLabel: "PSP" },
-                {  y: 4303364, indexLabel: "Nintendo 3DS"},
-                {  y: 1717786, indexLabel: "PS Vita"}
+              theme: "theme2",
+              title:{
+                text: "User Revisions by User Type",
+              },
+              data: [
+                {
+                  type: "pie",
+                  showInLegend: true,
+                  toolTipContent: "{y} - #percent %",
+                  legendText: "{indexLabel}",
+                  dataPoints: data
+                }
               ]
-            }
-          ]
-        });
-      chart.render();
+            });
+          chart.render();
+        }
+      });
 
       $.get({
         url: '/overall/byYearByUser',
@@ -109,8 +107,6 @@
             animationEnabled: true,
             axisY: {
               title: "Amount",
-            },
-            axisX :{
             },
             legend: {
               verticalAlign: "bottom",

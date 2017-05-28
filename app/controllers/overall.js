@@ -183,11 +183,6 @@ module.exports.byYearByUser = function(req, res) {
 
     RevisionModel.aggregate([
         {
-            $match : {
-                'title': 'Australia'
-            }
-        },
-        {
             $addFields: {
                 year: {
                     $year: "$timestamp"
@@ -271,6 +266,59 @@ module.exports.byYearByUser = function(req, res) {
         map.get('user').forEach(function(count, year) {
             dataTable.users.push(createObj(count, year));
         });
+
+        res.send(JSON.stringify(dataTable));
+    });
+
+}
+
+module.exports.byUser = function(req, res) {
+    RevisionModel.aggregate([
+        {
+            $group: {
+                _id: { user: "$user", year: "$year" },
+                count: { $sum: 1 },
+                anon: { $addToSet: "$anon" }
+            }
+        }
+    ], function(err, docs) {
+
+        if (docs === undefined) {
+            res.send("failure");
+            return;
+        }
+
+
+        var dataTable = {
+            admin: 0,
+            anon: 0,
+            bot: 0,
+            user: 0
+        }
+
+        var bots = fs.readFileSync('./bot.txt', 'utf8');
+        bots = new Set(bots.toString().split('\n'));
+        var admins = fs.readFileSync('./admin.txt', 'utf8');
+        admins = new Set(admins.toString().split('\n'));
+
+        docs.forEach(function(doc) {
+            if (doc.anon.length == 1) {
+                dataTable.anon += 1;
+            } else if (bots.has(doc._id.user)) {
+                dataTable.bot += 1;
+            } else if (admins.has(doc._id.user)) {
+                dataTable.admin += 1;
+            } else {
+                dataTable.user += 1;
+            }
+        });
+
+        dataTable = [
+            {y: dataTable.admin, indexLabel: "admin" },
+            {y: dataTable.anon, indexLabel: "anon" },
+            {y: dataTable.bot, indexLabel: "bot" },
+            {y: dataTable.user, indexLabel: "user" }
+        ];
 
         res.send(JSON.stringify(dataTable));
     });
