@@ -1,4 +1,5 @@
 const mongoose = require('mongoose')
+
 mongoose.Promise = global.Promise;
 
 var revisionSchema = mongoose.Schema({
@@ -12,7 +13,7 @@ var revisionSchema = mongoose.Schema({
     sha1hidden: Boolean,
     size: Number,
     suppressed: Boolean,
-    timestamp: String,
+    timestamp: Date,
     title: String,
     user: String,
     userhidden: Boolean
