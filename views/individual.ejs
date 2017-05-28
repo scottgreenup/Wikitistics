@@ -21,28 +21,12 @@
 
     <table class="table table-striped table-bordered" id="statistics">
       <tr>
-        <td>Most revisions</td>
-        <td id="stats-most-revisions"></td>
+        <td>Revisions</td>
+        <td id="stats-revisions"></td>
       </tr>
       <tr>
-        <td>Least revisions</td>
-        <td id="stats-least-revisions"></td>
-      </tr>
-      <tr>
-        <td>Most registered users</td>
-        <td id="stats-most-users"></td>
-      </tr>
-      <tr>
-        <td>Least registered users</td>
-        <td id="stats-least-users"></td>
-      </tr>
-      <tr>
-        <td>Oldest article</td>
-        <td id="stats-oldest"></td>
-      </tr>
-      <tr>
-        <td>Youngest article</td>
-        <td id="stats-youngest"></td>
+        <td>Top Five Users</td>
+        <td id="stats-topFiveUsers"></td>
       </tr>
     </table>
 
@@ -50,6 +34,7 @@
       <ul class="nav nav-tabs">
         <li class="active"><a href="#1" data-toggle="tab">User Revisions by Year</a>
         <li><a href="#2" data-toggle="tab">User Revisions by User Type</a>
+				<li><a href="#3" data-toggle="tab">User Revisions by Year (Top Five)</a>
       </ul>
 
       <div class="tab-content" id="chart-tabs">
@@ -58,6 +43,9 @@
         </div>
         <div class="tab-pane" id="2">
           <div id="pieChart" style="height: 400px; width: 100%;"></div>
+        </div>
+        <div class="tab-pane" id="3">
+          <div id="topFiveChart" style="height: 400px; width: 100%;"></div>
         </div>
       </div>
     </div>
@@ -74,15 +62,14 @@
         var results = new RegExp('[\?&]' + name + '=([^&#]*)')
           .exec(window.location.href);
 
-        return results[1] || null;
+				if (results && results.length >= 2) {
+					return results[1]
+				}
+
+        return null;
       }
 
       var title = $.urlParam('article');
-
-      if (title) {
-        title = decodeURIComponent(title);
-        $('#title').html(title);
-      }
 
       $.get({
         url: '/individual/articleList',
@@ -93,6 +80,162 @@
           });
           $('#articleList').append(domList);
         }
+      });
+
+      if (!title) {
+				return;
+			}
+
+			title = decodeURIComponent(title);
+			$('#title').html(title);
+
+      $('#stats-revisions').load("/individual/revisionCount?article=" + title);
+
+			$.get({
+				url: '/individual/topFiveUsers?article=' + title,
+				success: function(data) {
+
+					console.log(data);
+          var domList = "<ol>";
+          data.forEach(function(user) {
+            domList += '<li>' + user.username + ": " + user.count + '</li>';
+          });
+					domList += "</ol>"
+					$("#stats-topFiveUsers").append(domList);
+				}
+			});
+
+      $.get({
+        url: '/individual/byUser?article=' + title,
+        success: function(data) {
+          data = JSON.parse(data);
+
+          var chart = new CanvasJS.Chart("pieChart",
+            {
+              theme: "theme2",
+              title:{
+                text: "User Revisions by User Type",
+              },
+              data: [
+                {
+                  type: "pie",
+                  showInLegend: true,
+                  toolTipContent: "{y} - #percent %",
+                  legendText: "{indexLabel}",
+                  dataPoints: data
+                }
+              ]
+            });
+          chart.render();
+        }
+      });
+
+      $.get({
+        url: '/individual/byYearByUser?article=' + title,
+        success: function(data) {
+
+          data = JSON.parse(data);
+
+          var chart = new CanvasJS.Chart("chartContainer", {
+            title:{
+              text: "User Revisions by Year",
+            },
+            animationEnabled: true,
+            axisY: {
+              title: "Amount",
+            },
+            legend: {
+              verticalAlign: "bottom",
+            },
+            data: [{
+                type: "bar",
+                showInLegend: true,
+                legendText: "users",
+                dataPoints: data.users
+              },
+              {
+                type: "bar",
+                showInLegend: true,
+                legendText: "robots",
+                dataPoints: data.bot
+              },
+              {
+                type: "bar",
+                showInLegend: true,
+                legendText: "anon",
+                dataPoints: data.anon
+              },
+              {
+                type: "bar",
+                showInLegend: true,
+                legendText: "admins",
+                dataPoints: data.admin
+              },
+            ],
+            legend: {
+              cursor:"pointer",
+              itemclick : function(e){
+                if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                  e.dataSeries.visible = false;
+                }
+                else{
+                  e.dataSeries.visible = true;
+                }
+                chart.render();
+              }
+            }
+          });
+
+          chart.render();
+        },
+      });
+
+      $.get({
+        url: '/individual/byYearByTopFive?article=' + title,
+        success: function(data) {
+
+          data = JSON.parse(data);
+					var dataArray = [];
+
+					for (var key in data) {
+						dataArray.push({
+							type: "bar",
+							showInLegend: true,
+							legendText: key,
+							dataPoints: data[key]
+						});
+					}
+
+					console.log(dataArray);
+
+          var chart = new CanvasJS.Chart("topFiveChart", {
+            title:{
+              text: "User Revisions by Top Five Users",
+            },
+            animationEnabled: true,
+            axisY: {
+              title: "Amount",
+            },
+            legend: {
+              verticalAlign: "bottom",
+            },
+            data: dataArray,
+            legend: {
+              cursor:"pointer",
+              itemclick : function(e){
+                if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+                  e.dataSeries.visible = false;
+                }
+                else{
+                  e.dataSeries.visible = true;
+                }
+                chart.render();
+              }
+            }
+          });
+
+          chart.render();
+        },
       });
     }
   </script>
