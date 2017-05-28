@@ -201,11 +201,69 @@ module.exports.byYearByUser = function(req, res) {
 	});
 }
 
+// This needs to create a pie chart
 module.exports.byUser = function(req, res) {
     if (!req.query.article) {
         res.send("failure");
         return;
     }
+
+    var articleTitle = req.query.article;
+
+    RevisionModel.aggregate([
+		{
+			$match: {
+				title: articleTitle,
+			}
+		},
+        {
+            $group: {
+                _id: { user: "$user", year: "$year" },
+                count: { $sum: 1 },
+                anon: { $addToSet: "$anon" }
+            }
+        }
+    ], function(err, docs) {
+
+        if (docs === undefined) {
+            res.send("failure");
+            return;
+        }
+
+
+        var dataTable = {
+            admin: 0,
+            anon: 0,
+            bot: 0,
+            user: 0
+        }
+
+        var bots = fs.readFileSync('./bot.txt', 'utf8');
+        bots = new Set(bots.toString().split('\n'));
+        var admins = fs.readFileSync('./admin.txt', 'utf8');
+        admins = new Set(admins.toString().split('\n'));
+
+        docs.forEach(function(doc) {
+            if (doc.anon.length == 1) {
+                dataTable.anon += 1;
+            } else if (bots.has(doc._id.user)) {
+                dataTable.bot += 1;
+            } else if (admins.has(doc._id.user)) {
+                dataTable.admin += 1;
+            } else {
+                dataTable.user += 1;
+            }
+        });
+
+        dataTable = [
+            {y: dataTable.admin, indexLabel: "admin" },
+            {y: dataTable.anon, indexLabel: "anon" },
+            {y: dataTable.bot, indexLabel: "bot" },
+            {y: dataTable.user, indexLabel: "user" }
+        ];
+
+        res.send(JSON.stringify(dataTable));
+    });
 }
 
 module.exports.byYearByTopFive = function(req, res) {
@@ -213,5 +271,107 @@ module.exports.byYearByTopFive = function(req, res) {
         res.send("failure");
         return;
     }
+
+    var articleTitle = req.query.article;
+
+    var promiseA = new Promise((resolve, reject) => {
+		RevisionModel.aggregate([
+			{
+				$match: {
+					title: articleTitle
+				}
+			},
+			{
+				$group: {
+					_id: '$user',
+					count: {$sum: 1}
+				},
+			},
+			{
+				$sort: {
+					count: -1
+				}
+			},
+			{
+				$limit: 5
+			}
+		], function(err, docs) {
+			if (err) {
+				reject(err);
+				return;
+			}
+
+			var array = [];
+			docs.forEach(function(doc) {
+				winston.info("%s: %d", doc._id, doc.count);
+				array.push({
+					user: doc._id,
+				});
+			});
+
+			resolve(array);
+		});
+	});
+
+
+	var muffinProcessor = function(topFiveUsers) {
+
+
+		RevisionModel.aggregate([
+			{
+				$match: {
+					title: articleTitle,
+				}
+			},
+			{
+				$match: {
+					$or: topFiveUsers
+				}
+			},
+			{
+				$addFields: {
+					year: {
+						$year: "$timestamp"
+					}
+				}
+			},
+			{
+				$group: {
+					_id: { user: "$user", year: "$year" },
+					count: { $sum: 1 },
+				}
+			}
+		], function(err, docs) {
+			if (docs === undefined) {
+				res.send("failure");
+				return;
+			}
+
+			var bots = fs.readFileSync('./bot.txt', 'utf8');
+			bots = new Set(bots.toString().split('\n'));
+			var admins = fs.readFileSync('./admin.txt', 'utf8');
+			admins = new Set(admins.toString().split('\n'));
+
+			var dataTable = {
+			};
+
+			topFiveUsers.forEach(function(user) {
+				dataTable[user.user] = [];
+			});
+
+			docs.forEach(function(doc) {
+				dataTable[doc._id.user].push({
+					label: doc._id.year.toString(),
+					y: doc.count
+				});
+			});
+
+			res.send(JSON.stringify(dataTable));
+		});
+	};
+
+	promiseA.then(muffinProcessor).catch(function(error) {
+		res.send(error);
+	});
 }
 
