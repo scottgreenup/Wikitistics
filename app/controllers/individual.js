@@ -46,7 +46,7 @@ module.exports.revisionCount = function(req, res) {
         .find({title: articleTitle})
         .count(function(err, count) {
             if (err) {
-                res.send("0");
+                res.send(err);
             } else {
                 res.send("" + count);
             }
@@ -58,6 +58,45 @@ module.exports.topFiveUsers = function(req, res) {
         res.send("failure");
         return;
     }
+
+    var articleTitle = req.query.article;
+
+    RevisionModel.aggregate([
+        {
+            $match: {
+                title: articleTitle
+            }
+        },
+        {
+            $group: {
+                _id: '$user',
+                count: {$sum: 1}
+            },
+        },
+        {
+            $sort: {
+                count: -1
+            }
+        },
+        {
+            $limit: 5
+        }
+    ], function(err, docs) {
+        if (err) {
+            res.send(err);
+            return;
+        }
+
+        var array = [];
+        docs.forEach(function(doc) {
+            array.push({
+                username: doc._id,
+                count: doc.count
+            });
+        });
+
+        res.send(array);
+    });
 }
 
 module.exports.byYearByUser = function(req, res) {
