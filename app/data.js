@@ -76,7 +76,7 @@ function addHistoricalData(title, jsonData, callback) {
             winston.info(
                 "Processed '%s': inserted %d; found %d existing.",
                 title, results.length, revisions.length);
-            callback(error, results);
+            callback(error, null);
         });
     });
 }
@@ -121,11 +121,16 @@ module.exports.importHistoricalData = function() {
 		async.parallel(tasks, function(error, titles) {
 			titles = titles.filter(function(e) { return e !== null; });
 			tasks = [];
+
+            // For each title, check if 
 			titles.forEach(function(title) {
 				tasks.push(function(callback) {
 					addHistoricalData(title, fileData.get(title), callback);
 				});
 			});
+
+            winston.info("Created import tasks...");
+
 			async.series(tasks, function(error, results) {
 				winston.info("Finished importing historical data.");
 				resolve("done");
