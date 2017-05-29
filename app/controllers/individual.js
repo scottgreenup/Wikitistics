@@ -8,6 +8,11 @@ const winston = require('winston');
 var RevisionModel = require('../models/revision').model;
 
 module.exports.showPage = function(req, res) {
+    if (!req.query.article) {
+        res.redirect('/individual?article=Australia');
+        return;
+    }
+
     content = {
         'title': 'Wikistats',
     }
@@ -16,7 +21,6 @@ module.exports.showPage = function(req, res) {
 }
 
 module.exports.articleList = function(req, res) {
-
     RevisionModel.aggregate([
         {
 
@@ -303,7 +307,6 @@ module.exports.byYearByTopFive = function(req, res) {
 
 			var array = [];
 			docs.forEach(function(doc) {
-				winston.info("%s: %d", doc._id, doc.count);
 				array.push({
 					user: doc._id,
 				});

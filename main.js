@@ -41,82 +41,12 @@ app.use('/individual', require('./app/routes/individual'));
 // Redirect the user straight to the overall statistics route
 app.get('/', function(req, res) {
     res.redirect('/overall');
-
 })
 
 app.listen(config.port, function() {
     console.log('Running on :%d', config.port);
 });
 
-//------------------------------------------------------------------------------
-
-class Article {
-    constructor(filename, data) {
-        this._filename = filename;
-        this._data = data;
-        this._revisions = null;
-        this._users = null;
-        this._age = null;
-    }
-
-    get revisionLen() {
-        if (!this._revisions) {
-            this._revisions = this._data.length;
-        }
-
-        return this._revisions;
-    }
-
-    get users() {
-        if (!this._users) {
-            var userSet = new Set();
-            this._data.forEach(function(e, index) {
-                if ('userhidden' in e || e.user === undefined) {
-                    return;
-                }
-
-                userSet.add(e.user);
-            });
-            this._users = userSet;
-        }
-
-        return this._users;
-    }
-
-    get age() {
-        if (!this._age) {
-            var minTime = null;
-
-            this._data.forEach(function(e) {
-                var time = moment(e.timestamp).unix();
-                if (minTime == null || minTime > time) {
-                    minTime = time;
-                }
-            });
-
-            this._age = minTime;
-        }
-
-        var dif = moment().unix() - this._age;
-        var dur = moment.duration(dif, 'seconds');
-        var age = dur.years() + ' years ' +
-            dur.months() + ' months ' +
-            dur.days() + ' days ' +
-            dur.hours() + ':' + dur.minutes() + ':' + dur.seconds();
-
-        return age;
-    }
-
-    get title() {
-        if (!this._name) {
-            // remove the file's filetype suffix
-            this._name = this._filename.substring(
-                0, this._filename.lastIndexOf('.'));
-        }
-
-        return this._name;
-    }
-}
 
 function latestTimestamp(revisions) {
     var latest = 0;
@@ -131,9 +61,11 @@ function latestTimestamp(revisions) {
     return {latest: latest, revid: revid}
 }
 
+
 function removeFileType(fileName) {
     return fileName.substring(0, fileName.lastIndexOf('.'));
 }
+
 
 // Adds the historical data stored in fileName to the database. Validates that
 // a revision doesn't already exist in the database first. This avoids
