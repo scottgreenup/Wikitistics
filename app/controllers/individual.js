@@ -7,6 +7,8 @@ const winston = require('winston');
 
 var RevisionModel = require('../models/revision').model;
 
+const appData = require('../data');
+
 module.exports.showPage = function(req, res) {
     if (!req.query.article) {
         res.redirect('/individual?article=Australia');
@@ -38,6 +40,30 @@ module.exports.articleList = function(req, res) {
 
 }
 
+module.exports.updateArticle = function(req, res) {
+    if (!req.query.article) {
+        res.send("Failed to update. Which article?");
+        return;
+    }
+
+    var articleTitle = req.query.article;
+
+    winston.info("Updating %s", articleTitle);
+
+    appData.getLatestRevisions(articleTitle).then(function(results) {
+        if (results) {
+            res.send(util.format("Updated %s with %d revisions",
+                decodeURI(articleTitle),
+                results.length
+            ));
+        } else {
+            res.send(util.format("%s had no new revisions.", decodeURI(articleTitle)))
+        }
+    }).catch(function(error) {
+        res.send("Failed to update.");
+    });
+}
+
 module.exports.revisionCount = function(req, res) {
     if (!req.query.article) {
         res.send("failure");
@@ -47,7 +73,7 @@ module.exports.revisionCount = function(req, res) {
     var articleTitle = req.query.article;
 
     RevisionModel
-        .find({title: articleTitle})
+        .find({title: decodeURI(articleTitle)})
         .count(function(err, count) {
             if (err) {
                 res.send(err);

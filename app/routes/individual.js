@@ -5,6 +5,7 @@ const controller = require('../controllers/individual')
 const router = express.Router();
 
 router.get('/', controller.showPage);
+router.get('/updateArticle', controller.updateArticle);
 router.get('/articleList', controller.articleList);
 router.get('/revisionCount', controller.revisionCount);
 router.get('/topFiveUsers', controller.topFiveUsers);
