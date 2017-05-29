@@ -1,20 +1,3 @@
-//==========================================================================
-// :might indicate an edit summary that has been removed
-// https://en.wikipedia.org/w/index.php?title=Wii&offset=20070216183012&limit=500&action=history&tagfilter=
-// Refer to 19:16, 12 February 2007 on this article
-//
-//  "title": "Wii",
-//  "timestamp": "2007-02-12T19:16:03Z",
-//  "userhidden": "",
-//  "revid": 107623492,
-//  "parentid": 107621130,
-//  "sha1hidden": "",
-//  "suppressed": "",
-//  "commenthidden": "",
-//  "size": 48852
-//
-//==========================================================================
-
 const async = require('async')
 const fs = require('fs')
 const ejs = require('ejs')
@@ -35,6 +18,8 @@ var RevisionModel = require('./app/models/revision').model;
 var app = express()
 
 app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, '/app/views'))
+
 app.use('/static', express.static('public'));
 app.use('/overall', require('./app/routes/overall'));
 app.use('/individual', require('./app/routes/individual'));
@@ -48,16 +33,15 @@ app.listen(config.port, function() {
     console.log('Running on :%d', config.port);
 });
 
-
-
 mongoose.connect(config.database.hostname)
+
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error: '));
 db.once('open', function() {
     winston.info("Connected to %s", config.database.hostname);
 
-    /*
 	appData.importHistoricalData().then(function(done) {
+        /*
 		winston.info("Updating dataset.");
 		RevisionModel.find({}).distinct('title', function(error, titles) {
 			function perform(index) {
@@ -69,7 +53,7 @@ db.once('open', function() {
 			}
 			perform(0);
 		});
+        // */
 	});
-    */
 });
 
